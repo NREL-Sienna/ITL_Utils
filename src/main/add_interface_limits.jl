@@ -28,8 +28,8 @@ function add_interface_limits!(sys::PSY.System, itl_results_loc::String; seriali
         Using aggregate capacity for these interfaces."
     end
 
-    if (length(interface_reg_idxs) == length(no_itl_interfaces))
-        error("No ITL limits to and from for all the interfaces in the System in the data passed. Check the ITL data being passed.")
+    if (length(no_itl_interfaces) > (length(interface_reg_idxs)/2))
+        error("Majority of ITL limits for the interfaces in the System are not present in the data passed. Check the ITL data being passed.")
     end
 
     @info "Adding ITL values as Lines to the System..."
