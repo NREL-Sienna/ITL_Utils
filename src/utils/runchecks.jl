@@ -19,7 +19,7 @@ end
 
 function runchecks(sys_location::String)
     if ~(isjson(sys_location))
-        error("The System location passed is not a seriliazed System JSON file")
+        error("The System location passed is not a serialized System JSON file")
     end
 
     sys_dir = dirname(sys_location)

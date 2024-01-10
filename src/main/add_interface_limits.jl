@@ -1,4 +1,16 @@
-function add_interface_limits!(sys::PSY.System, itl_results_loc::String)
+function add_interface_limits!(sys::PSY.System, itl_results_loc::String; serialize = false, sys_export_loc::Union{Nothing, String} = nothing)
+    # Checks
+    if (serialize)
+        if (sys_export_loc === nothing)
+            @warn "Location to serialize the modified System wasn't passed. The modified System is not being serialized. If you want to serialize the 
+                   modified System, you can do this using PSY.to_json() yourself."
+        else
+            if ~(isjson(sys_export_loc))
+                error("The System export location passed should be JSON file.")
+            end
+        end
+    end
+
     PSY.set_units_base_system!(sys, PSY.UnitSystem.NATURAL_UNITS)
 
     itl_data = parse_itl_results(itl_results_loc)
@@ -36,18 +48,16 @@ function add_interface_limits!(sys::PSY.System, itl_results_loc::String)
     end
 
     for (line_name,line_params) in itl_values
-        itl_line = PSY.Line(
+        itl_line = PSY.TwoTerminalHVDCLine(
             name = line_name,
             available = true,
             active_power_flow = 0.0,
-            reactive_power_flow = 0.0,
             arc = line_params["arc"],
-            r = 0.0,
-            x =  0.0,
-            b = (from = 0.0, to = 0.0),
-            rate = line_params["limit_from"]/100.0,
-            angle_limits = (min = -1.571, max = 1.571),
-            ext = Dict("limit_to" => line_params["limit_to"])
+            active_power_limits_from = (min = 0.0, max = line_params["limit_from"]/100.0) ,
+            active_power_limits_to = (min = 0.0, max = line_params["limit_to"]/100.0),
+            reactive_power_limits_from = (min = 0.0, max = 0.0),
+            reactive_power_limits_to = (min = 0.0, max = 0.0) ,
+            loss =  (l0 = 0.0, l1 = 0.0),
         )
         PSY.add_component!(sys, itl_line)
     end
@@ -57,10 +67,15 @@ function add_interface_limits!(sys::PSY.System, itl_results_loc::String)
         PSY.remove_component!(sys, line)
     end
 
+    if (serialize && sys_export_loc !== nothing)
+        @info "Serializing the System with inter-regional lines removed and ITL represented as TwoTerminalHVDCLines..."
+        PSY.to_json(sys,sys_export_loc,pretty = true, force = true)
+    end
+
     return sys
 end
 
-function add_interface_limits!(sys_location::String, itl_results_loc::String)
+function add_interface_limits!(sys_location::String, itl_results_loc::String; serialize = false, sys_export_loc::Union{Nothing, String} = nothing)
     @info "Running checks on the System location provided ..."
     runchecks(sys_location)
     
@@ -72,7 +87,13 @@ function add_interface_limits!(sys_location::String, itl_results_loc::String)
         error("The PSY System could not be de-serialized using the location of JSON provided. Please check the location and make sure you have permission to access time_series_storage.h5")
     end
 
-    add_interface_limits!(sys,itl_results_loc)
+    if (serialize)
+        if (sys_export_loc === nothing)
+            sys_export_loc = joinpath(dirname(sys_location), first(split(basename(sys_location),".json"))*"_ITL.json")
+            @warn "Location to serialize the modified System wasn't passed. Using $(sys_export_loc) to serialize the modified system."
+        end
+    end
+    add_interface_limits!(sys,itl_results_loc,serialize = serialize, sys_export_loc = sys_export_loc)
 end
 
 

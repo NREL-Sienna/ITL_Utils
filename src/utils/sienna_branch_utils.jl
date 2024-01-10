@@ -48,14 +48,6 @@ function get_limit_to(line::PSY.Line)
     return PSY.get_rate(line)
 end
 
-function get_limit_from(line::PSY.TwoTerminalHVDCLine)
-    return getfield(PSY.get_active_power_limits_from(line),:max)
-end
-
-function get_limit_to(line::PSY.TwoTerminalHVDCLine)
-    return getfield(PSY.get_active_power_limits_to(line),:max)
-end
-
 function get_limit_from(line::T) where {T<:PSY.Branch}
     error("get_limit_from isn't defined for $(typeof(line))")
     return
