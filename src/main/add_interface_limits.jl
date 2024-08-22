@@ -15,6 +15,32 @@ function add_interface_limits!(sys::PSY.System, itl_results_loc::String; seriali
 
     itl_data = parse_itl_results(itl_results_loc)
 
+    add_interface_limits!(sys,itl_data,serialize = serialize, sys_export_loc = sys_export_loc)
+end
+
+function add_interface_limits!(sys_location::String, itl_results_loc::String; serialize = false, sys_export_loc::Union{Nothing, String} = nothing)
+    @info "Running checks on the System location provided ..."
+    runchecks(sys_location)
+    
+    @info "The PowerSystems System is being de-serialized from the System JSON ..."
+    sys = 
+    try
+        PSY.System(sys_location;time_series_read_only = true,runchecks = false);
+    catch
+        error("The PSY System could not be de-serialized using the location of JSON provided. Please check the location and make sure you have permission to access time_series_storage.h5")
+    end
+
+    if (serialize)
+        if (sys_export_loc === nothing)
+            sys_export_loc = joinpath(dirname(sys_location), first(split(basename(sys_location),".json"))*"_ITL.json")
+            @warn "Location to serialize the modified System wasn't passed. Using $(sys_export_loc) to serialize the modified system."
+        end
+    end
+    add_interface_limits!(sys,itl_results_loc,serialize = serialize, sys_export_loc = sys_export_loc)
+end
+
+function add_interface_limits!(sys::PSY.System, itl_data::DataFrames.DataFrame; serialize = false, sys_export_loc::Union{Nothing, String} = nothing)
+    
     inter_regional_lines = collect(PSY.get_components(x -> ~(x.arc.from.area.name == x.arc.to.area.name),LineTypes,sys));
     region_names = PSY.get_name.(collect(PSY.get_components(PSY.Area, sys)));
     sorted_lines, interface_reg_idxs, interface_line_idxs, itl_interfaces = get_sorted_lines(inter_regional_lines, region_names);
@@ -78,28 +104,6 @@ function add_interface_limits!(sys::PSY.System, itl_results_loc::String; seriali
 
     return sys
 end
-
-function add_interface_limits!(sys_location::String, itl_results_loc::String; serialize = false, sys_export_loc::Union{Nothing, String} = nothing)
-    @info "Running checks on the System location provided ..."
-    runchecks(sys_location)
-    
-    @info "The PowerSystems System is being de-serialized from the System JSON ..."
-    sys = 
-    try
-        PSY.System(sys_location;time_series_read_only = true,runchecks = false);
-    catch
-        error("The PSY System could not be de-serialized using the location of JSON provided. Please check the location and make sure you have permission to access time_series_storage.h5")
-    end
-
-    if (serialize)
-        if (sys_export_loc === nothing)
-            sys_export_loc = joinpath(dirname(sys_location), first(split(basename(sys_location),".json"))*"_ITL.json")
-            @warn "Location to serialize the modified System wasn't passed. Using $(sys_export_loc) to serialize the modified system."
-        end
-    end
-    add_interface_limits!(sys,itl_results_loc,serialize = serialize, sys_export_loc = sys_export_loc)
-end
-
 
 
 
